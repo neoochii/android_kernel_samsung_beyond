@@ -55,24 +55,35 @@ esac
 
 FUNC_BUILD_KERNEL()
 {
-    echo " Starting a kernel build using "$KERNEL_DEFCONFIG ""
-    # No this is not a typo, samsung left it this way on 12
+    echo " Starting a kernel build using $KERNEL_DEFCONFIG"
     export PLATFORM_VERSION=11
     export ANDROID_MAJOR_VERSION=r
 
+    # Step 1: Generate base .config
     make -j$BUILD_JOB_NUMBER ARCH=arm64 \
         CROSS_COMPILE=$BUILD_CROSS_COMPILE \
         $KERNEL_DEFCONFIG || exit -1
 
+    # Step 2: Append common.config
+    cat arch/arm64/configs/common.config >> .config
+
+    # Step 3: Resolve config
+    make -j$BUILD_JOB_NUMBER ARCH=arm64 \
+        CROSS_COMPILE=$BUILD_CROSS_COMPILE \
+        olddefconfig || exit -1
+
+    # Step 4: Build the kernel
     make -j$BUILD_JOB_NUMBER ARCH=arm64 \
         CROSS_COMPILE=$BUILD_CROSS_COMPILE || exit -1
 
+    # Step 5: Build dtb image
     $RDIR/toolchains/mkdtimg cfg_create build/dtb_$SOC.img \
         $RDIR/toolchains/configs/exynos$SOC.cfg \
         -d $RDIR/arch/arm64/boot/dts/exynos
 
     echo " Finished kernel build"
 }
+
 
 FUNC_BUILD_DTBO()
 {
